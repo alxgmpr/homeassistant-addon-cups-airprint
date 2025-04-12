@@ -1,7 +1,7 @@
 # Home Assistant CUPS Addon
 With AirPrint + label printing rasterizing for a Zebra ZD621D.
 
-Forked from Grzegorz Zajac's [here]https://github.com/zajac-grzegorz/homeassistant-addon-cups-airprint 
+Forked from Grzegorz Zajac's [here](https://github.com/zajac-grzegorz/homeassistant-addon-cups-airprint)
 
 CUPS addon with working Avahi in reflector mode 
 
@@ -11,7 +11,7 @@ CUPS administrator login: **print**, password: **print** (can be changed in the 
 
 Configuration data is stored in **/addon_configs/<slug>_cups** folder
 
-[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fzajac-grzegorz%2Fhomeassistant-addon-cups-airprint)
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Falxgmpr%2Fhomeassistant-addon-cups-airprint)
 
 
 # Motivation

@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # Custom CUPS filter for Zebra thermal printers
-# Save this as /usr/lib/cups/filter/zebra-thermal-filter
-
-# Log file for debugging
+# Log both to file and stderr (which goes to CUPS error_log)
 LOG_FILE="/tmp/zebra-filter.log"
 
 # Log function
 log() {
-  echo "$(date): $1" >> "$LOG_FILE"
+  echo "$(date): ZEBRA FILTER: $1" >> "$LOG_FILE"
+  echo "ZEBRA FILTER: $1" >&2  # This will go to CUPS error_log
 }
 
 log "Filter started with arguments: $*"
@@ -28,26 +27,20 @@ if [ -z "$input_file" ]; then
   log "Read input from stdin to $input_file"
 fi
 
-# Set path to required utilities - already installed in the HA add-on
-IDENTIFY="/usr/bin/identify"
-MAGICK="/usr/bin/magick"
-PDFTOPPM="/usr/bin/pdftoppm"
-PDFINFO="/usr/bin/pdfinfo"
+# Check file exists and is readable
+if [ ! -f "$input_file" ]; then
+  log "ERROR: Input file does not exist: $input_file"
+  exit 1
+fi
 
-# Check that the required apps are installed
-for cmd in "$IDENTIFY" "$MAGICK" "$PDFTOPPM" "$PDFINFO"; do
-  if ! command -v "$cmd" &> /dev/null; then
-    log "ERROR: \"$cmd\" not found"
-    exit 1
-  fi
-done
+if [ ! -r "$input_file" ]; then
+  log "ERROR: Input file is not readable: $input_file"
+  exit 1
+fi
 
 # Create temp directory
 tmpdir=$(mktemp -d)
-if [[ "$?" -gt 0 ]]; then
-  log "ERROR: Failed to create temp dir!"
-  exit 1
-fi
+log "Created temp directory: $tmpdir"
 
 # Determine file type
 file_type=$(file -b --mime-type "$input_file")
@@ -55,41 +48,82 @@ log "File type detected: $file_type"
 
 # Process based on file type
 if [[ "$file_type" == "application/pdf" ]]; then
-  # Get printer DPI from CUPS options
-  dpi=$(echo "$options" | grep -o "Resolution=[0-9]*" | cut -d= -f2)
-  if [[ -z "$dpi" ]]; then
-    dpi=203  # Default DPI for many Zebra printers
-    log "Using default DPI: $dpi"
-  else
-    log "Using DPI from options: $dpi"
-  fi
-
-  # Extract all of the pages
-  log "Extracting pages with pdftoppm"
-  $PDFTOPPM -r "$dpi" -aa no -aaVector no -gray "$input_file" "$tmpdir/page"
-
-  # Apply thresholding to all pages - this is the key part from the Automator workflow
-  log "Applying thresholding"
+  log "Processing PDF file using ImageMagick"
   output_file="$tmpdir/processed.pdf"
-  $MAGICK "$tmpdir/page"* -colorspace gray -color-threshold 'gray(50%)-gray(100%)' -density "$dpi" -compress none "pdf:$output_file"
-
-  # Send processed file to standard output
+  
+  # Process with ImageMagick (using magick command)
+  if command -v /usr/bin/magick &> /dev/null; then
+    log "Using magick command"
+    /usr/bin/magick "$input_file" -colorspace gray -threshold 50% "$output_file"
+    if [ $? -ne 0 ]; then
+      log "ERROR: magick command failed, passing through original"
+      cat "$input_file"
+      exit 0
+    fi
+  else
+    # Fallback to convert
+    log "magick command not found, trying convert"
+    if command -v /usr/bin/convert &> /dev/null; then
+      /usr/bin/convert "$input_file" -colorspace gray -threshold 50% "$output_file"
+      if [ $? -ne 0 ]; then
+        log "ERROR: convert command failed, passing through original"
+        cat "$input_file"
+        exit 0
+      fi
+    else
+      log "ERROR: Neither magick nor convert found - passing through original"
+      cat "$input_file"
+      exit 0
+    fi
+  fi
+  
+  # Send processed file to output
   log "Sending processed file to output"
   cat "$output_file"
+  
 elif [[ "$file_type" == image/* ]]; then
-  # Process image files
   log "Processing image file"
-  $MAGICK "$input_file" -colorspace gray -color-threshold 'gray(50%)-gray(100%)' -compress none "pdf:-"
+  output_file="$tmpdir/processed.pdf"
+  
+  # Process with ImageMagick
+  if command -v /usr/bin/magick &> /dev/null; then
+    log "Using magick command for image"
+    /usr/bin/magick "$input_file" -colorspace gray -threshold 50% "$output_file"
+    if [ $? -ne 0 ]; then
+      log "ERROR: magick command failed for image, passing through original"
+      cat "$input_file"
+      exit 0
+    fi
+  else
+    # Fallback to convert
+    log "magick command not found, trying convert for image"
+    if command -v /usr/bin/convert &> /dev/null; then
+      /usr/bin/convert "$input_file" -colorspace gray -threshold 50% "$output_file"
+      if [ $? -ne 0 ]; then
+        log "ERROR: convert command failed for image, passing through original"
+        cat "$input_file"
+        exit 0
+      fi
+    else
+      log "ERROR: Neither magick nor convert found - passing through original"
+      cat "$input_file"
+      exit 0
+    fi
+  fi
+  
+  cat "$output_file"
+  
 else
-  log "Unsupported file type: $file_type"
-  # Pass through unsupported file types
+  log "Unsupported file type: $file_type - passing through unmodified"
   cat "$input_file"
 fi
 
 # Cleanup
 log "Cleaning up temporary files"
 rm -rf "$tmpdir"
-rm -f "$input_file"
+if [ "$input_file" != "$6" ] && [ -f "$input_file" ]; then
+  rm -f "$input_file"
+fi
 
-log "Filter completed"
+log "Filter completed successfully"
 exit 0

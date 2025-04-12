@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# Custom CUPS filter for Zebra thermal printers
+# Save this as /usr/lib/cups/filter/zebra-thermal-filter
+
+# Log file for debugging
+LOG_FILE="/tmp/zebra-filter.log"
+
+# Log function
+log() {
+  echo "$(date): $1" >> "$LOG_FILE"
+}
+
+log "Filter started with arguments: $*"
+
+# Parse CUPS arguments
+job_id=$1
+user=$2
+title=$3
+copies=$4
+options=$5
+input_file=$6  # CUPS passes the input file as the 6th argument
+
+# If input_file is not provided, read from stdin
+if [ -z "$input_file" ]; then
+  input_file=$(mktemp)
+  cat > "$input_file"
+  log "Read input from stdin to $input_file"
+fi
+
+# Set path to required utilities - already installed in the HA add-on
+IDENTIFY="/usr/bin/identify"
+MAGICK="/usr/bin/magick"
+PDFTOPPM="/usr/bin/pdftoppm"
+PDFINFO="/usr/bin/pdfinfo"
+
+# Check that the required apps are installed
+for cmd in "$IDENTIFY" "$MAGICK" "$PDFTOPPM" "$PDFINFO"; do
+  if ! command -v "$cmd" &> /dev/null; then
+    log "ERROR: \"$cmd\" not found"
+    exit 1
+  fi
+done
+
+# Create temp directory
+tmpdir=$(mktemp -d)
+if [[ "$?" -gt 0 ]]; then
+  log "ERROR: Failed to create temp dir!"
+  exit 1
+fi
+
+# Determine file type
+file_type=$(file -b --mime-type "$input_file")
+log "File type detected: $file_type"
+
+# Process based on file type
+if [[ "$file_type" == "application/pdf" ]]; then
+  # Get printer DPI from CUPS options
+  dpi=$(echo "$options" | grep -o "Resolution=[0-9]*" | cut -d= -f2)
+  if [[ -z "$dpi" ]]; then
+    dpi=203  # Default DPI for many Zebra printers
+    log "Using default DPI: $dpi"
+  else
+    log "Using DPI from options: $dpi"
+  fi
+
+  # Extract all of the pages
+  log "Extracting pages with pdftoppm"
+  $PDFTOPPM -r "$dpi" -aa no -aaVector no -gray "$input_file" "$tmpdir/page"
+
+  # Apply thresholding to all pages - this is the key part from the Automator workflow
+  log "Applying thresholding"
+  output_file="$tmpdir/processed.pdf"
+  $MAGICK "$tmpdir/page"* -colorspace gray -color-threshold 'gray(50%)-gray(100%)' -density "$dpi" -compress none "pdf:$output_file"
+
+  # Send processed file to standard output
+  log "Sending processed file to output"
+  cat "$output_file"
+elif [[ "$file_type" == image/* ]]; then
+  # Process image files
+  log "Processing image file"
+  $MAGICK "$input_file" -colorspace gray -color-threshold 'gray(50%)-gray(100%)' -compress none "pdf:-"
+else
+  log "Unsupported file type: $file_type"
+  # Pass through unsupported file types
+  cat "$input_file"
+fi
+
+# Cleanup
+log "Cleaning up temporary files"
+rm -rf "$tmpdir"
+rm -f "$input_file"
+
+log "Filter completed"
+exit 0

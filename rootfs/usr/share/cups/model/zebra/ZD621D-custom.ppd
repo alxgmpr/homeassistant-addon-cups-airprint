@@ -1,0 +1,92 @@
+*PPD-Adobe: "4.3"
+*FormatVersion: "4.3"
+*FileVersion: "1.0"
+*LanguageVersion: English
+*LanguageEncoding: ISOLatin1
+*PCFileName: "ZD621D-custom.ppd"
+*Manufacturer: "Zebra"
+*Product: "(ZD621D Thermal Printer)"
+*ModelName: "Zebra ZD621D"
+*ShortNickName: "Zebra ZD621D"
+*NickName: "Zebra ZD621D with thermal filter"
+*PSVersion: "(3010.000) 0"
+*LanguageLevel: "3"
+*ColorDevice: False
+*DefaultColorSpace: Gray
+*FileSystem: False
+*Throughput: "1"
+*LandscapeOrientation: Plus90
+*TTRasterizer: Type42
+
+*cupsFilter: "application/vnd.cups-raster 0 zebra-thermal-filter"
+*cupsFilter: "application/vnd.cups-pdf 0 zebra-thermal-filter"
+*cupsFilter: "image/jpeg 0 zebra-thermal-filter"
+*cupsFilter: "image/png 0 zebra-thermal-filter"
+*cupsFilter: "image/tiff 0 zebra-thermal-filter"
+
+*OpenUI *PageSize/Media Size: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*DefaultPageSize: w384h576
+*PageSize w203h153/2x1in: "<</PageSize[203 153]>>setpagedevice"
+*PageSize w203h306/2x2in: "<</PageSize[203 306]>>setpagedevice"
+*PageSize w288h432/3x4in: "<</PageSize[288 432]>>setpagedevice"
+*PageSize w288h576/3x6in: "<</PageSize[288 576]>>setpagedevice"
+*PageSize w384h576/4x6in: "<</PageSize[384 576]>>setpagedevice"
+*PageSize w576h864/6x9in: "<</PageSize[576 864]>>setpagedevice"
+*PageSize w576h1152/6x12in: "<</PageSize[576 1152]>>setpagedevice"
+*CloseUI: *PageSize
+
+*OpenUI *PageRegion/Page Region: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: w384h576
+*PageRegion w203h153/2x1in: "<</PageSize[203 153]>>setpagedevice"
+*PageRegion w203h306/2x2in: "<</PageSize[203 306]>>setpagedevice"
+*PageRegion w288h432/3x4in: "<</PageSize[288 432]>>setpagedevice"
+*PageRegion w288h576/3x6in: "<</PageSize[288 576]>>setpagedevice"
+*PageRegion w384h576/4x6in: "<</PageSize[384 576]>>setpagedevice"
+*PageRegion w576h864/6x9in: "<</PageSize[576 864]>>setpagedevice"
+*PageRegion w576h1152/6x12in: "<</PageSize[576 1152]>>setpagedevice"
+*CloseUI: *PageRegion
+
+*DefaultImageableArea: w384h576
+*ImageableArea w203h153/2x1in: "0 0 203 153"
+*ImageableArea w203h306/2x2in: "0 0 203 306"
+*ImageableArea w288h432/3x4in: "0 0 288 432"
+*ImageableArea w288h576/3x6in: "0 0 288 576"
+*ImageableArea w384h576/4x6in: "0 0 384 576"
+*ImageableArea w576h864/6x9in: "0 0 576 864"
+*ImageableArea w576h1152/6x12in: "0 0 576 1152"
+
+*DefaultPaperDimension: w384h576
+*PaperDimension w203h153/2x1in: "203 153"
+*PaperDimension w203h306/2x2in: "203 306"
+*PaperDimension w288h432/3x4in: "288 432"
+*PaperDimension w288h576/3x6in: "288 576"
+*PaperDimension w384h576/4x6in: "384 576"
+*PaperDimension w576h864/6x9in: "576 864"
+*PaperDimension w576h1152/6x12in: "576 1152"
+
+*OpenUI *Resolution/Resolution: PickOne
+*OrderDependency: 10 AnySetup *Resolution
+*DefaultResolution: 203dpi
+*Resolution 203dpi/203 DPI: "<</HWResolution[203 203]/cupsBitsPerColor 1/cupsRowCount 8/cupsRowFeed 0/cupsRowStep 0/cupsColorSpace 3>>setpagedevice"
+*Resolution 300dpi/300 DPI: "<</HWResolution[300 300]/cupsBitsPerColor 1/cupsRowCount 8/cupsRowFeed 0/cupsRowStep 0/cupsColorSpace 3>>setpagedevice"
+*CloseUI: *Resolution
+
+*OpenUI *Darkness/Darkness: PickOne
+*OrderDependency: 20 AnySetup *Darkness
+*DefaultDarkness: Medium
+*Darkness Light/Light: ""
+*Darkness Medium/Medium: ""
+*Darkness Dark/Dark: ""
+*CloseUI: *Darkness
+
+*OpenUI *PrintSpeed/Print Speed: PickOne
+*OrderDependency: 20 AnySetup *PrintSpeed
+*DefaultPrintSpeed: 4ips
+*PrintSpeed 2ips/2 inches per second: ""
+*PrintSpeed 3ips/3 inches per second: ""
+*PrintSpeed 4ips/4 inches per second: ""
+*PrintSpeed 5ips/5 inches per second: ""
+*PrintSpeed 6ips/6 inches per second: ""
+*CloseUI: *PrintSpeed

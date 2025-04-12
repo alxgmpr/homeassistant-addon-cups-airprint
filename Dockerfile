@@ -1,7 +1,7 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-LABEL io.hass.version="1.5" io.hass.type="addon" io.hass.arch="aarch64|amd64"
+LABEL io.hass.version="1.6" io.hass.type="addon" io.hass.arch="aarch64|amd64"
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -36,6 +36,10 @@ RUN apt update \
         bash-completion \
         procps \
         whois \
+        # Added dependencies for Zebra thermal filter
+        file \
+        imagemagick \
+        poppler-utils \
     && apt clean -y \
     && rm -rf /var/lib/apt/lists/*
 

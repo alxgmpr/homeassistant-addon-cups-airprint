@@ -36,7 +36,6 @@ RUN apt update \
         bash-completion \
         procps \
         whois \
-        # Added dependencies for Zebra thermal filter
         file \
         imagemagick \
         poppler-utils \
@@ -64,6 +63,10 @@ RUN useradd \
 && sed -i '/%sudo[[:space:]]/ s/ALL[[:space:]]*$/NOPASSWD:ALL/' /etc/sudoers
 
 EXPOSE 631
+
+# Compile the Zebra driver
+RUN mkdir -p /usr/share/cups/model/zebra && \
+    ppdc -d /usr/share/cups/model/zebra /usr/share/cups/drv/zebra-zd621d.drv
 
 RUN chmod a+x /run.sh
 

@@ -1,71 +1,107 @@
-#!/usr/bin/with-contenv bashio
+#!/bin/bash
+# zebra-thermal-filter - CUPS filter for processing Zebra thermal printer jobs
+# This filter applies thresholding to images for crisp label printing
 
-# Custom CUPS filter for Zebra thermal printers
-LOG_FILE="/var/log/cups/zebra_filter.log"
-
-# Create log directory if needed
-mkdir -p "$(dirname "$LOG_FILE")"
-
-# Log function
-log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+# Standard error logging
+error_log() {
+  echo "ZEBRA-FILTER: $1" >&2
 }
 
-# Parse CUPS arguments
-job_id=$1
-user=$2
-title=$3
-copies=$4
-options=$5
-input_file=$6  # CUPS passes the input file as the 6th argument
+# Log start of filter
+error_log "Filter starting with args: $@"
 
-log "Zebra filter starting for job $job_id: $title"
+# Get arguments from CUPS
+job_id="$1"
+user="$2"
+title="$3"
+copies="$4"
+options="$5"
+filename="$6"
 
-# If input_file is not provided, read from stdin
-if [ -z "$input_file" ]; then
-  input_file=$(mktemp)
-  cat > "$input_file"
-  log "Read input from stdin to $input_file"
+# If no filename is provided, input comes from stdin
+if [ -z "$filename" ]; then
+  filename="/tmp/cups-zebra-filter-$job_id-$user"
+  cat > "$filename"
+  error_log "Created temporary input file: $filename"
 fi
 
-# Create temp directory
-tmpdir=$(mktemp -d)
+# Check if file exists and is readable
+if [ ! -f "$filename" ]; then
+  error_log "Input file does not exist: $filename"
+  exit 1
+fi
 
-# Determine file type
-file_type=$(file -b --mime-type "$input_file")
-log "Processing file of type: $file_type"
+# Create temporary directory for processing
+tmp_dir=$(mktemp -d)
+if [ $? -ne 0 ]; then
+  error_log "Failed to create temporary directory"
+  exit 1
+fi
 
-# Process based on file type
-if [[ "$file_type" == "application/pdf" ]]; then
-  output_file="$tmpdir/processed.pdf"
-  log "Processing PDF with magick"
-  
-  # Process with ImageMagick
-  if ! /usr/bin/magick "$input_file" -colorspace gray -threshold 50% "$output_file"; then
-    log "Processing failed, passing through original"
-    cat "$input_file"
-  else
-    log "Sending processed file to output"
-    cat "$output_file"
-  fi
-  
-elif [[ "$file_type" == image/* ]]; then
-  output_file="$tmpdir/processed.pdf"
-  log "Processing image with magick"
-  
-  if ! /usr/bin/magick "$input_file" -colorspace gray -threshold 50% "$output_file"; then
-    log "Processing failed, passing through original"
-    cat "$input_file"
-  else
-    cat "$output_file"
-  fi
-  
+# Get the file type
+file_type=$(file -b --mime-type "$filename")
+error_log "Processing file type: $file_type"
+
+# Get threshold value from options (default 50%)
+threshold=$(echo "$options" | grep -o "Threshold=[0-9]*" | cut -d= -f2)
+if [ -z "$threshold" ]; then
+  threshold=50
+  error_log "Using default threshold: $threshold%"
 else
-  log "Unsupported file type - passing through unmodified"
-  cat "$input_file"
+  error_log "Using threshold from options: $threshold%"
 fi
 
-# Cleanup
-rm -rf "$tmpdir"
-log "Filter completed for job $job_id"
+# Process image or PDF
+output_file="$tmp_dir/output.pdf"
+
+# Handle different file types
+case "$file_type" in
+  application/pdf)
+    error_log "Processing PDF file"
+    
+    # Use pdftoppm to split PDF into pages
+    pdftoppm -r 203 -gray "$filename" "$tmp_dir/page" && \
+    # Use ImageMagick to apply thresholding
+    magick "$tmp_dir/page"* -colorspace gray -threshold "$threshold%" "$output_file"
+    
+    if [ $? -ne 0 ]; then
+      error_log "PDF processing failed, passing through original"
+      cat "$filename"
+      rm -rf "$tmp_dir"
+      exit 0
+    fi
+    ;;
+    
+  image/*)
+    error_log "Processing image file"
+    
+    # Process image with ImageMagick
+    magick "$filename" -colorspace gray -threshold "$threshold%" "$output_file"
+    
+    if [ $? -ne 0 ]; then
+      error_log "Image processing failed, passing through original"
+      cat "$filename"
+      rm -rf "$tmp_dir"
+      exit 0
+    fi
+    ;;
+    
+  *)
+    error_log "Unsupported file type, passing through unmodified"
+    cat "$filename"
+    rm -rf "$tmp_dir"
+    exit 0
+    ;;
+esac
+
+# Send processed file to standard output
+cat "$output_file"
+
+# Clean up
+rm -rf "$tmp_dir"
+if [ "$filename" != "$6" ]; then
+  rm -f "$filename"
+fi
+
+error_log "Filter completed successfully"
 exit 0

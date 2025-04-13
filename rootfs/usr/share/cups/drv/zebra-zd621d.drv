@@ -1,0 +1,117 @@
+// CUPS PPD compiler driver info file for Zebra ZD621D
+
+// Include standard font and media definitions
+#include <font.defs>
+#include <media.defs>
+
+// Define custom media sizes for labels
+#media "w144h72/2.00x1.00 inch" 144 72
+#media "w144h90/2.00x1.25 inch" 144 90
+#media "w144h288/2.00x4.00 inch" 144 288
+#media "w162h90/2.25x1.25 inch" 162 90
+#media "w162h288/2.25x4.00 inch" 162 288
+#media "w162h396/2.25x5.50 inch" 162 396
+#media "w216h144/3.00x2.00 inch" 216 144
+#media "w216h216/3.00x3.00 inch" 216 216
+#media "w216h360/3.00x5.00 inch" 216 360
+#media "w234h360/3.25x5.00 inch" 234 360
+#media "w234h396/3.25x5.50 inch" 234 396
+#media "w234h419/3.25x5.83 inch" 234 419
+#media "w288h72/4.00x1.00 inch" 288 72
+#media "w288h144/4.00x2.00 inch" 288 144
+#media "w288h216/4.00x3.00 inch" 288 216
+#media "w288h288/4.00x4.00 inch" 288 288
+#media "w288h360/4.00x5.00 inch" 288 360
+#media "w288h432/4.00x6.00 inch" 288 432
+#media "w288h468/4.00x6.50 inch" 288 468
+#media "w384h576/4.00x8.00 inch" 384 576
+#media "w576h864/8.00x12.00 inch" 576 864
+
+// Specify the driver catalog info
+DriverType custom
+ManualCopies Yes
+Manufacturer "Zebra"
+ModelName "Zebra ZD621D"
+Version 1.0
+ModelNumber 1
+PCFileName "zebra-zd621d.ppd"
+
+// Specify filter
+Filter application/vnd.cups-raster 0 zebra-thermal-filter
+Filter application/pdf 0 zebra-thermal-filter
+Filter image/jpeg 0 zebra-thermal-filter
+Filter image/png 0 zebra-thermal-filter
+
+// List the fonts that are supported
+Font *
+
+// Supported page sizes
+HWMargins 0 0 0 0
+MinSize 36 36
+MaxSize 576 3600
+
+// Label media sizes specific to thermal labels
+*MediaSize w288h432
+MediaSize w144h72
+MediaSize w144h90
+MediaSize w144h288
+MediaSize w162h90
+MediaSize w162h288
+MediaSize w162h396
+MediaSize w216h144
+MediaSize w216h216
+MediaSize w216h360
+MediaSize w234h360
+MediaSize w234h396
+MediaSize w234h419
+MediaSize w288h72
+MediaSize w288h144
+MediaSize w288h216
+MediaSize w288h288
+MediaSize w288h360
+MediaSize w288h468
+MediaSize w384h576
+MediaSize w576h864
+
+// Custom page size support
+VariablePaperSize Yes
+MinSize 36 36
+MaxSize 576 3600
+
+// Resolution
+*Resolution k 8 0 0 0 "203dpi/203 DPI"
+Resolution k 8 0 0 0 "300dpi/300 DPI"
+
+// Color mode
+ColorModel Gray/Grayscale w 0 Gray
+
+// Media type options
+Option "MediaType/Media Type" PickOne AnySetup 10
+  *Choice "Direct/Direct Thermal" "<</MediaType(Direct)>>setpagedevice"
+  Choice "Thermal/Thermal Transfer" "<</MediaType(Thermal)>>setpagedevice"
+
+// Darkness adjustment
+Option "Darkness/Print Darkness" PickOne AnySetup 10
+  Choice "0/0" "<</cupsBitsPerColor 1/cupsCompression 0>>setpagedevice"
+  Choice "5/5" "<</cupsBitsPerColor 1/cupsCompression 17>>setpagedevice"
+  *Choice "10/10" "<</cupsBitsPerColor 1/cupsCompression 34>>setpagedevice"
+  Choice "15/15" "<</cupsBitsPerColor 1/cupsCompression 50>>setpagedevice"
+  Choice "20/20" "<</cupsBitsPerColor 1/cupsCompression 67>>setpagedevice"
+  Choice "25/25" "<</cupsBitsPerColor 1/cupsCompression 84>>setpagedevice"
+  Choice "30/30" "<</cupsBitsPerColor 1/cupsCompression 100>>setpagedevice"
+
+// Print rate option
+Option "PrintRate/Print Speed" PickOne AnySetup 10
+  Choice "2/2 inches/sec" ""
+  Choice "3/3 inches/sec" ""
+  *Choice "4/4 inches/sec" ""
+  Choice "6/6 inches/sec" ""
+  Choice "8/8 inches/sec" ""
+
+// Threshold level for image processing
+Option "Threshold/Image Threshold" PickOne AnySetup 10
+  Choice "30/Light (30%)" ""
+  Choice "40/Medium Light (40%)" ""
+  *Choice "50/Medium (50%)" ""
+  Choice "60/Medium Dark (60%)" ""
+  Choice "70/Dark (70%)" ""

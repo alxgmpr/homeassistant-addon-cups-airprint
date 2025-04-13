@@ -123,9 +123,9 @@ case "${file_type}" in
     application/pdf)
         log "Processing PDF file"
         
-        # Convert PDF to PPM with specific DPI and center-of-pixel method
+        # Convert PDF to PPM with specific DPI
         log "Converting PDF to PPM"
-        if ! run_command pdftoppm -r 203 -gray -aa no -aaVector no -center "${filename}" "${tmp_dir}/page"; then
+        if ! run_command pdftoppm -r 203 -gray -aa no -aaVector no -thinlinemode shape "${filename}" "${tmp_dir}/page"; then
             log "ERROR: pdftoppm failed"
             exit 1
         fi
@@ -134,7 +134,7 @@ case "${file_type}" in
         log "Generated PPM files:"
         ls -la "${tmp_dir}/page"* >> "${LOG_FILE}"
         
-        # Process images with GraphicsMagick using center-of-pixel method
+        # Process images with GraphicsMagick
         log "Converting PPM to final format"
         if ! run_command gm convert "${tmp_dir}/page"* -colorspace gray -threshold "${threshold}%" -density 203 -compress none -define png:exclude-chunks=all "${output_file}"; then
             log "ERROR: GraphicsMagick conversion failed"

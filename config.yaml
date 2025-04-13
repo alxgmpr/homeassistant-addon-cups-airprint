@@ -1,5 +1,5 @@
 name: CUPS for Zebra
-version: "1.7.5"
+version: "1.7.6"
 slug: cups
 description: A CUPS print server to expose and filter Zebra print jobs
 arch:

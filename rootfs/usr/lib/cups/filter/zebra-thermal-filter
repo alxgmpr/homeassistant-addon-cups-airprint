@@ -29,9 +29,10 @@ run_command() {
     local command_output
     command_output=$("$@" 2>&1)
     local exit_code=$?
+    log "Running command: $*"
+    log "Command output: $command_output"
     if [ $exit_code -ne 0 ]; then
-        log "ERROR: Command failed: $*"
-        log "Command output: $command_output"
+        log "ERROR: Command failed with exit code $exit_code"
     fi
     return $exit_code
 }
@@ -122,31 +123,38 @@ case "${file_type}" in
     application/pdf)
         log "Processing PDF file"
         
-        # Get PDF dimensions and DPI
-        pdf_info=$(run_command pdfinfo "${filename}")
-        if [ $? -ne 0 ]; then
+        # Convert PDF to PPM with specific DPI and center-of-pixel method
+        log "Converting PDF to PPM"
+        if ! run_command pdftoppm -r 203 -gray -aa no -aaVector no -center "${filename}" "${tmp_dir}/page"; then
+            log "ERROR: pdftoppm failed"
             exit 1
         fi
         
-        # Extract page dimensions
-        page_width=$(echo "$pdf_info" | grep "Page size" | awk '{print $3}')
-        page_height=$(echo "$pdf_info" | grep "Page size" | awk '{print $5}')
-        log "PDF dimensions: ${page_width}x${page_height}"
+        # List the generated PPM files
+        log "Generated PPM files:"
+        ls -la "${tmp_dir}/page"* >> "${LOG_FILE}"
         
-        # Convert PDF to PPM with specific DPI
-        if ! run_command pdftoppm -r 203 -gray -aa no -aaVector no "${filename}" "${tmp_dir}/page"; then
+        # Process images with GraphicsMagick using center-of-pixel method
+        log "Converting PPM to final format"
+        if ! run_command gm convert "${tmp_dir}/page"* -colorspace gray -threshold "${threshold}%" -density 203 -compress none -define png:exclude-chunks=all "${output_file}"; then
+            log "ERROR: GraphicsMagick conversion failed"
             exit 1
         fi
         
-        # Process images with GraphicsMagick
-        if ! run_command gm convert "${tmp_dir}/page"* -colorspace gray -threshold "${threshold}%" -density 203 -compress none "${output_file}"; then
+        # Verify output file
+        if [ -f "${output_file}" ]; then
+            log "Output file created successfully: ${output_file}"
+            log "Output file size: $(stat -c %s "${output_file}") bytes"
+        else
+            log "ERROR: Output file not created"
             exit 1
         fi
         ;;
         
     image/*)
         log "Processing image file"
-        if ! run_command gm convert "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}"; then
+        if ! run_command gm convert "${filename}" -colorspace gray -threshold "${threshold}%" -define png:exclude-chunks=all "${output_file}"; then
+            log "ERROR: GraphicsMagick conversion failed"
             exit 1
         fi
         ;;

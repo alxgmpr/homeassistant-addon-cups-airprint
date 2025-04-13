@@ -40,8 +40,13 @@ RUN apt update \
         file \
         imagemagick \
         poppler-utils \
+        ghostscript \
+        libmagickcore-6.q16-6-extra \
     && apt clean -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i '/<policy domain="coder" rights="none" pattern="PDF" \/>/d' /etc/ImageMagick-6/policy.xml \
+    && sed -i '/<policy domain="coder" rights="none" pattern="PS" \/>/d' /etc/ImageMagick-6/policy.xml \
+    && sed -i '/<policy domain="coder" rights="none" pattern="EPS" \/>/d' /etc/ImageMagick-6/policy.xml
 
 # Add Canon cnijfilter2 driver
 RUN cd /tmp \

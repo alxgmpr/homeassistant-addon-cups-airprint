@@ -3,14 +3,18 @@
 # Applies thresholding to create crisp black and white labels
 
 # Log file - separate from stdout/stderr
-LOG_FILE="/var/log/cups/zebra-filter.log"
+LOG_FILE="/tmp/zebra_filter.log"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null
 
 # Log function - writes to log file only, not to output stream
+# Log function with directory creation
 log() {
-  echo "$(date): $1" >> "$LOG_FILE"
+  LOG_DIR="/var/log/cups"
+  # Create log directory with proper permissions if it doesn't exist
+  [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR" && chmod 777 "$LOG_DIR"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_DIR/zebra_filter.log"
 }
 
 # Error log function - writes to CUPS error_log

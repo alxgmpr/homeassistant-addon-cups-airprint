@@ -68,6 +68,11 @@ EXPOSE 631
 RUN mkdir -p /usr/share/cups/model/zebra && \
     ppdc -d /usr/share/cups/model/zebra /usr/share/cups/drv/zebra-zd621d.drv
 
+# Create log directory and set permissions
+RUN mkdir -p /var/log/cups && \
+    touch /var/log/cups/zebra_filter.log && \
+    chmod 666 /var/log/cups/zebra_filter.log
+
 RUN chmod a+x /run.sh
 
 CMD ["/run.sh"]

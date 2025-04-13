@@ -19,9 +19,11 @@ if [ -f "${LOG_FILE}" ] && [ $(stat -c %s "${LOG_FILE}") -gt ${MAX_LOG_SIZE} ]; 
     mv "${LOG_FILE}" "${LOG_FILE}.old"
 fi
 
-# Single logging function - writes to log file
+# Single logging function - writes to log file and stderr
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "${LOG_FILE}"
+    local message="$(date '+%Y-%m-%d %H:%M:%S'): $1"
+    echo "$message" >> "${LOG_FILE}"
+    echo "$message" >&2
 }
 
 # Cleanup function
@@ -109,12 +111,27 @@ output_file="${tmp_dir}/output.pdf"
 case "${file_type}" in
     application/pdf)
         log "Processing PDF file"
-        if ! pdftoppm -r 203 -gray "${filename}" "${tmp_dir}/page"; then
+        
+        # Get PDF dimensions and DPI
+        pdf_info=$(pdfinfo "${filename}" 2>&1)
+        if [ $? -ne 0 ]; then
+            log "ERROR: Failed to get PDF info: $pdf_info"
+            exit 1
+        fi
+        
+        # Extract page dimensions
+        page_width=$(echo "$pdf_info" | grep "Page size" | awk '{print $3}')
+        page_height=$(echo "$pdf_info" | grep "Page size" | awk '{print $5}')
+        log "PDF dimensions: ${page_width}x${page_height}"
+        
+        # Convert PDF to PPM with specific DPI
+        if ! pdftoppm -r 203 -gray -aa no -aaVector no "${filename}" "${tmp_dir}/page" 2>&1; then
             log "ERROR: pdftoppm failed"
             exit 1
         fi
         
-        if ! magick "${tmp_dir}/page"* -colorspace gray -threshold "${threshold}%" "${output_file}"; then
+        # Process images with ImageMagick
+        if ! magick "${tmp_dir}/page"* -colorspace gray -color-threshold "gray(50%)-gray(100%)" -density 203 -compress none "${output_file}" 2>&1; then
             log "ERROR: ImageMagick processing failed"
             exit 1
         fi
@@ -122,7 +139,7 @@ case "${file_type}" in
         
     image/*)
         log "Processing image file"
-        if ! magick "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}"; then
+        if ! magick "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}" 2>&1; then
             log "ERROR: ImageMagick processing failed"
             exit 1
         fi

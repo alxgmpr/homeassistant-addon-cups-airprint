@@ -37,10 +37,10 @@ ModelNumber 1
 PCFileName "zebra-zd621d.ppd"
 
 // Specify filter
-Filter application/vnd.cups-raster 0 zebra-thermal-filter
-Filter application/pdf 0 zebra-thermal-filter
-Filter image/jpeg 0 zebra-thermal-filter
-Filter image/png 0 zebra-thermal-filter
+PreFilter application/vnd.cups-raster 0 zebra-thermal-filter
+PreFilter application/pdf 0 zebra-thermal-filter
+PreFilter image/jpeg 0 zebra-thermal-filter
+PreFilter image/png 0 zebra-thermal-filter
 
 // List the fonts that are supported
 Font *

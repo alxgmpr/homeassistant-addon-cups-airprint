@@ -2,16 +2,37 @@
 # zebra-thermal-filter - CUPS filter for Zebra thermal printer
 # Applies thresholding to create crisp black and white labels
 
-# Log file
-LOG_FILE="/var/log/cups/zebra-filter.log"
+# Configuration
+LOG_DIR="/var/log/cups"
+LOG_FILE="${LOG_DIR}/zebra-filter.log"
+MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10MB
+TEMP_BASE="/tmp"
 
-# Ensure log directory exists
-mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null
+# Ensure log directory exists and is writable
+if ! mkdir -p "${LOG_DIR}" 2>/dev/null || [ ! -w "${LOG_DIR}" ]; then
+    echo "ERROR: Cannot write to log directory ${LOG_DIR}" >&2
+    exit 1
+fi
+
+# Rotate log if too large
+if [ -f "${LOG_FILE}" ] && [ $(stat -c %s "${LOG_FILE}") -gt ${MAX_LOG_SIZE} ]; then
+    mv "${LOG_FILE}" "${LOG_FILE}.old"
+fi
 
 # Single logging function - writes to log file
 log() {
-  echo "$(date): $1" >> "$LOG_FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "${LOG_FILE}"
 }
+
+# Cleanup function
+cleanup() {
+    if [ -n "${tmp_dir}" ] && [ -d "${tmp_dir}" ]; then
+        rm -rf "${tmp_dir}"
+    fi
+}
+
+# Register cleanup on script exit
+trap cleanup EXIT
 
 # Start logging
 log "==============================================="
@@ -25,103 +46,104 @@ copies="$4"
 options="$5"
 filename="$6"
 
-# Create job temp directory
-tmp_dir="/tmp/zebra-job-$job_id"
-mkdir -p "$tmp_dir"
+# Validate job_id (prevent directory traversal)
+if ! [[ "${job_id}" =~ ^[0-9]+$ ]]; then
+    log "ERROR: Invalid job_id"
+    exit 1
+fi
+
+# Create secure temporary directory
+tmp_dir=$(mktemp -d "${TEMP_BASE}/zebra-job-${job_id}-XXXXXX")
 if [ $? -ne 0 ]; then
-  log "ERROR: Failed to create temporary directory"
-  exit 1
+    log "ERROR: Failed to create temporary directory"
+    exit 1
+fi
+
+# Check available disk space (minimum 100MB)
+available_space=$(df -P "${tmp_dir}" | awk 'NR==2 {print $4}')
+if [ "${available_space}" -lt 102400 ]; then
+    log "ERROR: Insufficient disk space"
+    exit 1
 fi
 
 # If no filename is provided, input comes from stdin
-if [ -z "$filename" ]; then
-  filename="$tmp_dir/input.raw"
-  cat > "$filename"
-  log "Created temporary input file: $filename"
+if [ -z "${filename}" ]; then
+    filename="${tmp_dir}/input.raw"
+    cat > "${filename}"
+    log "Created temporary input file: ${filename}"
 fi
 
-# Check file exists
-if [ ! -f "$filename" ]; then
-  log "ERROR: Input file not found: $filename"
-  exit 1
+# Check file exists and is readable
+if [ ! -f "${filename}" ] || [ ! -r "${filename}" ]; then
+    log "ERROR: Input file not found or not readable: ${filename}"
+    exit 1
 fi
 
 # Log file info
-file_info=$(file -b "$filename")
-file_type=$(file -b --mime-type "$filename")
-file_size=$(stat -c %s "$filename")
-log "Processing file: $filename"
-log "Type: $file_type"
-log "Info: $file_info"
-log "Size: $file_size bytes"
-log "Options: $options"
+file_info=$(file -b "${filename}")
+file_type=$(file -b --mime-type "${filename}")
+file_size=$(stat -c %s "${filename}")
+log "Processing file: ${filename}"
+log "Type: ${file_type}"
+log "Info: ${file_info}"
+log "Size: ${file_size} bytes"
+log "Options: ${options}"
 
 # Get threshold value (default 50%)
-threshold=$(echo "$options" | grep -o "Threshold=[0-9]*" | cut -d= -f2)
-if [ -z "$threshold" ]; then
-  threshold=50
-  log "Using default threshold: $threshold%"
+threshold=$(echo "${options}" | grep -o "Threshold=[0-9]*" | cut -d= -f2)
+if [ -z "${threshold}" ]; then
+    threshold=50
+    log "Using default threshold: ${threshold}%"
 else
-  log "Using threshold from options: $threshold%"
+    # Validate threshold value
+    if [ "${threshold}" -lt 0 ] || [ "${threshold}" -gt 100 ]; then
+        log "ERROR: Invalid threshold value: ${threshold}"
+        exit 1
+    fi
+    log "Using threshold from options: ${threshold}%"
 fi
 
 # Process based on file type
-output_file="$tmp_dir/output.pdf"
+output_file="${tmp_dir}/output.pdf"
 
-case "$file_type" in
-  application/pdf)
-    log "Processing PDF file"
-    # Extract to images with pdftoppm
-    if ! pdftoppm -r 203 -gray "$filename" "$tmp_dir/page"; then
-      log "ERROR: pdftoppm failed"
-      cat "$filename"
-      rm -rf "$tmp_dir"
-      exit 0
-    fi
-    
-    # Apply thresholding with ImageMagick
-    if ! magick "$tmp_dir/page"* -colorspace gray -threshold "$threshold%" "$output_file"; then
-      log "ERROR: ImageMagick processing failed"
-      cat "$filename"
-      rm -rf "$tmp_dir"
-      exit 0
-    fi
-    ;;
-    
-  image/*)
-    log "Processing image file"
-    # Process with ImageMagick
-    if ! magick "$filename" -colorspace gray -threshold "$threshold%" "$output_file"; then
-      log "ERROR: ImageMagick processing failed"
-      cat "$filename"
-      rm -rf "$tmp_dir"
-      exit 0
-    fi
-    ;;
-    
-  *)
-    log "Unsupported file type - passing through unmodified"
-    cat "$filename"
-    rm -rf "$tmp_dir"
-    exit 0
-    ;;
+case "${file_type}" in
+    application/pdf)
+        log "Processing PDF file"
+        if ! pdftoppm -r 203 -gray "${filename}" "${tmp_dir}/page"; then
+            log "ERROR: pdftoppm failed"
+            exit 1
+        fi
+        
+        if ! magick "${tmp_dir}/page"* -colorspace gray -threshold "${threshold}%" "${output_file}"; then
+            log "ERROR: ImageMagick processing failed"
+            exit 1
+        fi
+        ;;
+        
+    image/*)
+        log "Processing image file"
+        if ! magick "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}"; then
+            log "ERROR: ImageMagick processing failed"
+            exit 1
+        fi
+        ;;
+        
+    *)
+        log "Unsupported file type - passing through unmodified"
+        cat "${filename}"
+        exit 0
+        ;;
 esac
 
-# Check if output file exists
-if [ ! -f "$output_file" ]; then
-  log "ERROR: Output file not created"
-  cat "$filename"
-  # rm -rf "$tmp_dir"
-  exit 0
+# Check if output file exists and is readable
+if [ ! -f "${output_file}" ] || [ ! -r "${output_file}" ]; then
+    log "ERROR: Output file not created or not readable"
+    exit 1
 fi
 
 # Send processed file to output
 log "Sending processed file to printer"
-cat "$output_file"
-
-# # Clean up
-# log "Cleaning up"
-# rm -rf "$tmp_dir"
+cat "${output_file}"
 
 log "Filter completed successfully"
 exit 0

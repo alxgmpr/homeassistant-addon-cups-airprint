@@ -19,11 +19,21 @@ if [ -f "${LOG_FILE}" ] && [ $(stat -c %s "${LOG_FILE}") -gt ${MAX_LOG_SIZE} ]; 
     mv "${LOG_FILE}" "${LOG_FILE}.old"
 fi
 
-# Single logging function - writes to log file and stderr
+# Single logging function - writes only to log file
 log() {
-    local message="$(date '+%Y-%m-%d %H:%M:%S'): $1"
-    echo "$message" >> "${LOG_FILE}"
-    echo "$message" >&2
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "${LOG_FILE}"
+}
+
+# Function to run command and log its output
+run_command() {
+    local command_output
+    command_output=$("$@" 2>&1)
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        log "ERROR: Command failed: $*"
+        log "Command output: $command_output"
+    fi
+    return $exit_code
 }
 
 # Cleanup function
@@ -113,9 +123,8 @@ case "${file_type}" in
         log "Processing PDF file"
         
         # Get PDF dimensions and DPI
-        pdf_info=$(pdfinfo "${filename}" 2>&1)
+        pdf_info=$(run_command pdfinfo "${filename}")
         if [ $? -ne 0 ]; then
-            log "ERROR: Failed to get PDF info: $pdf_info"
             exit 1
         fi
         
@@ -125,22 +134,19 @@ case "${file_type}" in
         log "PDF dimensions: ${page_width}x${page_height}"
         
         # Convert PDF to PPM with specific DPI
-        if ! pdftoppm -r 203 -gray -aa no -aaVector no "${filename}" "${tmp_dir}/page" 2>&1; then
-            log "ERROR: pdftoppm failed"
+        if ! run_command pdftoppm -r 203 -gray -aa no -aaVector no "${filename}" "${tmp_dir}/page"; then
             exit 1
         fi
         
         # Process images with ImageMagick
-        if ! magick "${tmp_dir}/page"* -colorspace gray -color-threshold "gray(50%)-gray(100%)" -density 203 -compress none "${output_file}" 2>&1; then
-            log "ERROR: ImageMagick processing failed"
+        if ! run_command magick "${tmp_dir}/page"* -colorspace gray -color-threshold "gray(50%)-gray(100%)" -density 203 -compress none "${output_file}"; then
             exit 1
         fi
         ;;
         
     image/*)
         log "Processing image file"
-        if ! magick "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}" 2>&1; then
-            log "ERROR: ImageMagick processing failed"
+        if ! run_command magick "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}"; then
             exit 1
         fi
         ;;

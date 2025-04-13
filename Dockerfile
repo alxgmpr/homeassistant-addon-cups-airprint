@@ -19,6 +19,16 @@ RUN apt update \
         colord \
         printer-driver-all-enforce \
         printer-driver-all \
+        printer-driver-splix \
+        printer-driver-brlaser \
+        printer-driver-gutenprint \
+        openprinting-ppds \
+        hpijs-ppds \
+        hp-ppd  \
+        hplip \
+        printer-driver-foo2zjs \
+        printer-driver-hpcups \
+        printer-driver-escpr \
         cups-pdf \
         gnupg2 \
         lsb-release \
@@ -30,18 +40,16 @@ RUN apt update \
         file \
         imagemagick \
         poppler-utils \
-        cups-ppdc \
     && apt clean -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Add Canon cnijfilter2 driver
 RUN cd /tmp \
-    && if [ "$(arch)" = 'x86_64' ]; then ARCH="amd64"; else ARCH="arm64"; fi \
-    && curl -L https://gdlp01.c-wss.com/gds/0/0100012300/02/cnijfilter2-6.80-1-deb.tar.gz -o cnijfilter2.tar.gz \
-    && tar -xvf ./cnijfilter2.tar.gz cnijfilter2-6.80-1-deb/packages/cnijfilter2_6.80-1_${ARCH}.deb \
-    && mv cnijfilter2-6.80-1-deb/packages/cnijfilter2_6.80-1_${ARCH}.deb cnijfilter2_6.80-1.deb \
-    && apt install -y ./cnijfilter2_6.80-1.deb \
-    && rm -rf /tmp/cnijfilter2*
+  && if [ "$(arch)" = 'x86_64' ]; then ARCH="amd64"; else ARCH="arm64"; fi \
+  && curl https://gdlp01.c-wss.com/gds/0/0100012300/02/cnijfilter2-6.80-1-deb.tar.gz -o cnijfilter2.tar.gz \
+  && tar -xvf ./cnijfilter2.tar.gz cnijfilter2-6.80-1-deb/packages/cnijfilter2_6.80-1_${ARCH}.deb \
+  && mv cnijfilter2-6.80-1-deb/packages/cnijfilter2_6.80-1_${ARCH}.deb cnijfilter2_6.80-1.deb \
+  && apt install ./cnijfilter2_6.80-1.deb
 
 # Copy rootfs first
 COPY rootfs /

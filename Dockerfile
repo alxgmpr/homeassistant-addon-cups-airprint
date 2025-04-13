@@ -38,15 +38,15 @@ RUN apt update \
         procps \
         whois \
         file \
-        imagemagick \
+        libpng-dev \
+        libjpeg-dev \
+        libtiff-dev \
+        graphicsmagick \
         poppler-utils \
         ghostscript \
-        libmagickcore-6.q16-6-extra \
+        graphicsmagick-imagemagick-compat \
     && apt clean -y \
-    && rm -rf /var/lib/apt/lists/* \
-    && sed -i '/<policy domain="coder" rights="none" pattern="PDF" \/>/d' /etc/ImageMagick-6/policy.xml \
-    && sed -i '/<policy domain="coder" rights="none" pattern="PS" \/>/d' /etc/ImageMagick-6/policy.xml \
-    && sed -i '/<policy domain="coder" rights="none" pattern="EPS" \/>/d' /etc/ImageMagick-6/policy.xml
+    && rm -rf /var/lib/apt/lists/*
 
 # Add Canon cnijfilter2 driver
 RUN cd /tmp \
@@ -72,8 +72,8 @@ RUN useradd \
 EXPOSE 631
 
 # Compile the Zebra driver
-RUN mkdir -p /usr/share/cups/model/zebra \
-    && ppdc -d /usr/share/cups/model/zebra /usr/share/cups/drv/zebra-zd621d.drv
+# RUN mkdir -p /usr/share/cups/model/zebra \
+#     && ppdc -d /usr/share/cups/model/zebra /usr/share/cups/drv/zebra-zd621d.drv
 
 # Create log directory and set permissions
 RUN mkdir -p /var/log/cups \

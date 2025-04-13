@@ -138,15 +138,15 @@ case "${file_type}" in
             exit 1
         fi
         
-        # Process images with ImageMagick
-        if ! run_command magick "${tmp_dir}/page"* -colorspace gray -color-threshold "gray(50%)-gray(100%)" -density 203 -compress none "${output_file}"; then
+        # Process images with GraphicsMagick
+        if ! run_command gm convert "${tmp_dir}/page"* -colorspace gray -threshold "${threshold}%" -density 203 -compress none "${output_file}"; then
             exit 1
         fi
         ;;
         
     image/*)
         log "Processing image file"
-        if ! run_command magick "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}"; then
+        if ! run_command gm convert "${filename}" -colorspace gray -threshold "${threshold}%" "${output_file}"; then
             exit 1
         fi
         ;;

@@ -111,7 +111,7 @@ esac
 if [ ! -f "$output_file" ]; then
   log "ERROR: Output file not created"
   cat "$filename"
-  rm -rf "$tmp_dir"
+  # rm -rf "$tmp_dir"
   exit 0
 fi
 

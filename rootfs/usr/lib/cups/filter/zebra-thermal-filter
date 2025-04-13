@@ -1,6 +1,15 @@
 #!/usr/bin/with-contenv bashio
 
 # Custom CUPS filter for Zebra thermal printers
+LOG_FILE="/var/log/cups/zebra_filter.log"
+
+# Create log directory if needed
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# Log function
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
 
 # Parse CUPS arguments
 job_id=$1
@@ -10,13 +19,13 @@ copies=$4
 options=$5
 input_file=$6  # CUPS passes the input file as the 6th argument
 
-bashio::log.info "Zebra filter starting for job $job_id: $title"
+log "Zebra filter starting for job $job_id: $title"
 
 # If input_file is not provided, read from stdin
 if [ -z "$input_file" ]; then
   input_file=$(mktemp)
   cat > "$input_file"
-  bashio::log.info "Read input from stdin to $input_file"
+  log "Read input from stdin to $input_file"
 fi
 
 # Create temp directory
@@ -24,39 +33,39 @@ tmpdir=$(mktemp -d)
 
 # Determine file type
 file_type=$(file -b --mime-type "$input_file")
-bashio::log.info "Processing file of type: $file_type"
+log "Processing file of type: $file_type"
 
 # Process based on file type
 if [[ "$file_type" == "application/pdf" ]]; then
   output_file="$tmpdir/processed.pdf"
-  bashio::log.info "Processing PDF with magick"
+  log "Processing PDF with magick"
   
   # Process with ImageMagick
   if ! /usr/bin/magick "$input_file" -colorspace gray -threshold 50% "$output_file"; then
-    bashio::log.error "Processing failed, passing through original"
+    log "Processing failed, passing through original"
     cat "$input_file"
   else
-    bashio::log.info "Sending processed file to output"
+    log "Sending processed file to output"
     cat "$output_file"
   fi
   
 elif [[ "$file_type" == image/* ]]; then
   output_file="$tmpdir/processed.pdf"
-  bashio::log.info "Processing image with magick"
+  log "Processing image with magick"
   
   if ! /usr/bin/magick "$input_file" -colorspace gray -threshold 50% "$output_file"; then
-    bashio::log.error "Processing failed, passing through original"
+    log "Processing failed, passing through original"
     cat "$input_file"
   else
     cat "$output_file"
   fi
   
 else
-  bashio::log.info "Unsupported file type - passing through unmodified"
+  log "Unsupported file type - passing through unmodified"
   cat "$input_file"
 fi
 
 # Cleanup
 rm -rf "$tmpdir"
-bashio::log.info "Filter completed for job $job_id"
+log "Filter completed for job $job_id"
 exit 0

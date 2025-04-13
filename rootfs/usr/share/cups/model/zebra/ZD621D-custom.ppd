@@ -8,7 +8,7 @@
 *Product: "(ZD621D Thermal Printer)"
 *ModelName: "Zebra ZD621D"
 *ShortNickName: "Zebra ZD621D"
-*NickName: "Zebra ZD621D Thermal Printer with Image Processing"
+*NickName: "Zebra ZD621D Thermal Printer with Label Processing"
 *PSVersion: "(3010.000) 0"
 *LanguageLevel: "3"
 *ColorDevice: False
@@ -18,11 +18,12 @@
 *LandscapeOrientation: Plus90
 *TTRasterizer: Type42
 
-*cupsFilter: "application/vnd.cups-raster 0 zebra-thermal-filter"
-*cupsFilter: "application/vnd.cups-pdf 0 zebra-thermal-filter"
-*cupsFilter: "image/jpeg 0 zebra-thermal-filter"
-*cupsFilter: "image/png 0 zebra-thermal-filter"
-*cupsFilter: "image/tiff 0 zebra-thermal-filter"
+*cupsPreFilter: "application/vnd.cups-pdf 0 zebra-thermal-filter"
+*cupsPreFilter: "application/pdf 0 zebra-thermal-filter"
+*cupsPreFilter: "image/jpeg 0 zebra-thermal-filter"
+*cupsPreFilter: "image/png 0 zebra-thermal-filter"
+*cupsPreFilter: "image/tiff 0 zebra-thermal-filter"
+*cupsPreFilter: "application/vnd.cups-raster 0 zebra-thermal-filter"
 
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize

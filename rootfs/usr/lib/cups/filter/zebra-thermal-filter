@@ -1,14 +1,27 @@
 #!/bin/bash
-# zebra-thermal-filter - CUPS filter for processing Zebra thermal printer jobs
-# This filter applies thresholding to images for crisp label printing
+# zebra-thermal-filter - CUPS filter for Zebra thermal printer
+# Applies thresholding to create crisp black and white labels
 
-# Standard error logging
+# Log file - separate from stdout/stderr
+LOG_FILE="/var/log/cups/zebra-filter.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null
+
+# Log function - writes to log file only, not to output stream
+log() {
+  echo "$(date): $1" >> "$LOG_FILE"
+}
+
+# Error log function - writes to CUPS error_log
 error_log() {
   echo "ZEBRA-FILTER: $1" >&2
 }
 
-# Log start of filter
-error_log "Filter starting with args: $@"
+# Start logging
+log "==============================================="
+log "Starting filter with args: $*"
+error_log "Filter started for job: $1"
 
 # Get arguments from CUPS
 job_id="$1"
@@ -20,52 +33,66 @@ filename="$6"
 
 # If no filename is provided, input comes from stdin
 if [ -z "$filename" ]; then
-  filename="/tmp/cups-zebra-filter-$job_id-$user"
-  cat > "$filename"
-  error_log "Created temporary input file: $filename"
+  temp_input="/tmp/zebra-job-$job_id.input"
+  cat > "$temp_input"
+  filename="$temp_input"
+  log "Created temporary input file: $filename"
 fi
 
-# Check if file exists and is readable
+# Check file exists
 if [ ! -f "$filename" ]; then
-  error_log "Input file does not exist: $filename"
+  error_log "Input file not found: $filename"
+  log "ERROR: Input file not found: $filename"
   exit 1
 fi
 
-# Create temporary directory for processing
-tmp_dir=$(mktemp -d)
+# Create temp directory
+tmp_dir="/tmp/zebra-job-$job_id"
+mkdir -p "$tmp_dir"
 if [ $? -ne 0 ]; then
   error_log "Failed to create temporary directory"
+  log "ERROR: Failed to create temporary directory"
   exit 1
 fi
 
-# Get the file type
+# Log file info
+file_info=$(file -b "$filename")
 file_type=$(file -b --mime-type "$filename")
-error_log "Processing file type: $file_type"
+file_size=$(stat -c %s "$filename")
+log "Processing file: $filename"
+log "Type: $file_type"
+log "Info: $file_info"
+log "Size: $file_size bytes"
+log "Options: $options"
 
-# Get threshold value from options (default 50%)
+# Get threshold value (default 50%)
 threshold=$(echo "$options" | grep -o "Threshold=[0-9]*" | cut -d= -f2)
 if [ -z "$threshold" ]; then
   threshold=50
-  error_log "Using default threshold: $threshold%"
+  log "Using default threshold: $threshold%"
 else
-  error_log "Using threshold from options: $threshold%"
+  log "Using threshold from options: $threshold%"
 fi
 
-# Process image or PDF
+# Process based on file type
 output_file="$tmp_dir/output.pdf"
 
-# Handle different file types
 case "$file_type" in
   application/pdf)
-    error_log "Processing PDF file"
+    log "Processing PDF file"
+    # Extract to images with pdftoppm
+    if ! pdftoppm -r 203 -gray "$filename" "$tmp_dir/page"; then
+      log "ERROR: pdftoppm failed"
+      error_log "PDF extraction failed"
+      cat "$filename"
+      rm -rf "$tmp_dir"
+      exit 0
+    fi
     
-    # Use pdftoppm to split PDF into pages
-    pdftoppm -r 203 -gray "$filename" "$tmp_dir/page" && \
-    # Use ImageMagick to apply thresholding
-    magick "$tmp_dir/page"* -colorspace gray -threshold "$threshold%" "$output_file"
-    
-    if [ $? -ne 0 ]; then
-      error_log "PDF processing failed, passing through original"
+    # Apply thresholding with ImageMagick
+    if ! magick "$tmp_dir/page"* -colorspace gray -threshold "$threshold%" "$output_file"; then
+      log "ERROR: ImageMagick processing failed"
+      error_log "Image processing failed"
       cat "$filename"
       rm -rf "$tmp_dir"
       exit 0
@@ -73,13 +100,11 @@ case "$file_type" in
     ;;
     
   image/*)
-    error_log "Processing image file"
-    
-    # Process image with ImageMagick
-    magick "$filename" -colorspace gray -threshold "$threshold%" "$output_file"
-    
-    if [ $? -ne 0 ]; then
-      error_log "Image processing failed, passing through original"
+    log "Processing image file"
+    # Process with ImageMagick
+    if ! magick "$filename" -colorspace gray -threshold "$threshold%" "$output_file"; then
+      log "ERROR: ImageMagick processing failed"
+      error_log "Image processing failed"
       cat "$filename"
       rm -rf "$tmp_dir"
       exit 0
@@ -87,21 +112,34 @@ case "$file_type" in
     ;;
     
   *)
-    error_log "Unsupported file type, passing through unmodified"
+    log "Unsupported file type - passing through unmodified"
+    error_log "Unsupported file type: $file_type"
     cat "$filename"
     rm -rf "$tmp_dir"
+    [ -n "$temp_input" ] && rm -f "$temp_input"
     exit 0
     ;;
 esac
 
-# Send processed file to standard output
+# Check if output file exists
+if [ ! -f "$output_file" ]; then
+  log "ERROR: Output file not created"
+  error_log "Processing failed - no output file"
+  cat "$filename"
+  rm -rf "$tmp_dir"
+  [ -n "$temp_input" ] && rm -f "$temp_input"
+  exit 0
+fi
+
+# Send processed file to output
+log "Sending processed file to printer"
 cat "$output_file"
 
 # Clean up
+log "Cleaning up"
 rm -rf "$tmp_dir"
-if [ "$filename" != "$6" ]; then
-  rm -f "$filename"
-fi
+[ -n "$temp_input" ] && rm -f "$temp_input"
 
+log "Filter completed successfully"
 error_log "Filter completed successfully"
 exit 0

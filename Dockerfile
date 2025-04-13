@@ -72,13 +72,15 @@ RUN mkdir -p /usr/share/cups/model/zebra \
 
 # Create log directory and set permissions
 RUN mkdir -p /var/log/cups \
+    && chown -R print:lp /var/log/cups \
+    && chmod -R 775 /var/log/cups \
     && touch /var/log/cups/zebra_filter.log \
     && chown print:lp /var/log/cups/zebra_filter.log \
-    && chmod 660 /var/log/cups/zebra_filter.log
+    && chmod 664 /var/log/cups/zebra_filter.log
 
 # Set permissions for CUPS configuration
 RUN chown -R print:lp /etc/cups \
-    && chmod -R 755 /etc/cups
+    && chmod -R 775 /etc/cups
 
 RUN chmod a+x /run.sh
 

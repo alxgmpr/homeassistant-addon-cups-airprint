@@ -2,26 +2,20 @@
 # zebra-thermal-filter - CUPS filter for Zebra thermal printer
 # Applies thresholding to create crisp black and white labels
 
-# Log file - separate from stdout/stderr
+# Log file
 LOG_FILE="/var/log/cups/zebra-filter.log"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null
 
-# Log function - writes to log file only, not to output stream
+# Single logging function - writes to log file
 log() {
   echo "$(date): $1" >> "$LOG_FILE"
-}
-
-# Error log function - writes to CUPS error_log
-error_log() {
-  echo "ZEBRA-FILTER: $1" >&2
 }
 
 # Start logging
 log "==============================================="
 log "Starting filter with args: $*"
-error_log "Filter started for job: $1"
 
 # Get arguments from CUPS
 job_id="$1"
@@ -31,27 +25,24 @@ copies="$4"
 options="$5"
 filename="$6"
 
+# Create job temp directory
+tmp_dir="/tmp/zebra-job-$job_id"
+mkdir -p "$tmp_dir"
+if [ $? -ne 0 ]; then
+  log "ERROR: Failed to create temporary directory"
+  exit 1
+fi
+
 # If no filename is provided, input comes from stdin
 if [ -z "$filename" ]; then
-  temp_input="/tmp/zebra-job-$job_id.input"
-  cat > "$temp_input"
-  filename="$temp_input"
+  filename="$tmp_dir/input.raw"
+  cat > "$filename"
   log "Created temporary input file: $filename"
 fi
 
 # Check file exists
 if [ ! -f "$filename" ]; then
-  error_log "Input file not found: $filename"
   log "ERROR: Input file not found: $filename"
-  exit 1
-fi
-
-# Create temp directory
-tmp_dir="/tmp/zebra-job-$job_id"
-mkdir -p "$tmp_dir"
-if [ $? -ne 0 ]; then
-  error_log "Failed to create temporary directory"
-  log "ERROR: Failed to create temporary directory"
   exit 1
 fi
 
@@ -83,7 +74,6 @@ case "$file_type" in
     # Extract to images with pdftoppm
     if ! pdftoppm -r 203 -gray "$filename" "$tmp_dir/page"; then
       log "ERROR: pdftoppm failed"
-      error_log "PDF extraction failed"
       cat "$filename"
       rm -rf "$tmp_dir"
       exit 0
@@ -92,7 +82,6 @@ case "$file_type" in
     # Apply thresholding with ImageMagick
     if ! magick "$tmp_dir/page"* -colorspace gray -threshold "$threshold%" "$output_file"; then
       log "ERROR: ImageMagick processing failed"
-      error_log "Image processing failed"
       cat "$filename"
       rm -rf "$tmp_dir"
       exit 0
@@ -104,7 +93,6 @@ case "$file_type" in
     # Process with ImageMagick
     if ! magick "$filename" -colorspace gray -threshold "$threshold%" "$output_file"; then
       log "ERROR: ImageMagick processing failed"
-      error_log "Image processing failed"
       cat "$filename"
       rm -rf "$tmp_dir"
       exit 0
@@ -113,10 +101,8 @@ case "$file_type" in
     
   *)
     log "Unsupported file type - passing through unmodified"
-    error_log "Unsupported file type: $file_type"
     cat "$filename"
     rm -rf "$tmp_dir"
-    [ -n "$temp_input" ] && rm -f "$temp_input"
     exit 0
     ;;
 esac
@@ -124,10 +110,8 @@ esac
 # Check if output file exists
 if [ ! -f "$output_file" ]; then
   log "ERROR: Output file not created"
-  error_log "Processing failed - no output file"
   cat "$filename"
   rm -rf "$tmp_dir"
-  [ -n "$temp_input" ] && rm -f "$temp_input"
   exit 0
 fi
 
@@ -135,11 +119,9 @@ fi
 log "Sending processed file to printer"
 cat "$output_file"
 
-# Clean up
-log "Cleaning up"
-rm -rf "$tmp_dir"
-[ -n "$temp_input" ] && rm -f "$temp_input"
+# # Clean up
+# log "Cleaning up"
+# rm -rf "$tmp_dir"
 
 log "Filter completed successfully"
-error_log "Filter completed successfully"
 exit 0

@@ -43,6 +43,7 @@ RUN cd /tmp \
     && apt install -y ./cnijfilter2_6.80-1.deb \
     && rm -rf /tmp/cnijfilter2*
 
+# Copy rootfs first
 COPY rootfs /
 
 # Add user and disable sudo password checking
